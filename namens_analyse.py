@@ -271,7 +271,10 @@ def match_names(text: str, text_cf: str, prefix_idx):
 # normales Deutsch ("Pass gut auf!", "Mist!", "der Klang"), nicht als
 # unübersetzter Name -> nie als "EN-Name im DE-Text" melden. Kuratiert
 # aus der Kalibrierung (deckt ~60 von 73 sonst-BeFUNDen ab).
-EN_COGNATE = {"mist", "pass", "rest", "klang", "charge", "rage", "flash"}
+# "leer": deutsches Wort (z. B. UI-Label "No data" -> "Leer") — Issue #39
+# Korrekturrunde: der Abgleich-Befund war ein Falschpositiv.
+EN_COGNATE = {"mist", "pass", "rest", "klang", "charge", "rage", "flash",
+              "leer"}
 
 # Korrekte deutsche Flexionsendungen: ein Token, das aus dem offiziellen
 # Namen plus ENDUNGE besteht, ist kein Tippfehler (Giftstachel+n,
@@ -437,6 +440,10 @@ LEHNWORTER = {
     "event", "events", "phase", "standard", "system", "systems",
     "plan", "plans", "start", "route", "pokedex", "pokédex",
     "pokecenter", "pokécenter", "pokénav", "pokémon",
+    # "city": offizielle deutsche Stadtnamen behalten bewusst "City"
+    # (z. B. Antisia = "Antisis City", Seaport = "Seaport City" —
+    # NAMENSVERZEICHNIS.md) — Issue #39 Korrekturrunde: kein Rest.
+    "city",
 }
 
 # Deutsche Wörter, die identisch mit Englischen sind (Kognate) — nie
@@ -445,8 +452,13 @@ LEHNWORTER = {
 # "winter": identisch deutsch (Saison-Label).
 # "bring": deutscher Imperativ ("Bring mir das!") ist identisch mit
 # dem englischen "bring" -> nicht als Rest melden.
+# "all": umgangssprachliches deutsches "all" (= "alle", #39-
+# Korrekturrunde); "look": deutscher Lehnwort-Gebrauch ("neuen Look").
+# Nebenwirkung: die Zeile mit dem bekannten Daten-Schaden "ür" wird
+# dadurch nicht mehr als Rest gemeldet (der Schaden bleibt in den
+# Korpus-Daten sichtbar; siehe Issue #39).
 GERMAN_STOP = {"tag", "man", "mal", "was", "war", "gen", "winter",
-               "bring"}
+               "bring", "all", "look"}
 
 # Dokumentierte Marken-/Label-Ausnahmen für komplett unübersetzte
 # Zeilen (EN == DE): Marken und Projekt-Labels, die bewusst nicht

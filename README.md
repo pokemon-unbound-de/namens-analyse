@@ -63,9 +63,10 @@ Zwei Prüfungen pro Zeile:
    DE-Text, obwohl es einen deutschen Namen gibt. Skips:
    - identischer Name (z. B. Mew),
    - **Kognat-Regel**: `EN_COGNATE = {mist, pass, rest, klang,
-     charge, rage, flash}` — EN-Namen, die zugleich alltägliche
+     charge, rage, flash, leer}` — EN-Namen, die zugleich alltägliche
      deutsche Wörter sind, hundertfach im Korpus als normales
-     Deutsch;
+     Deutsch; `leer` kalibriert in der #39-Korrekturrunde
+     (UI-Label „No data“ → „Leer“: Falschpositiv, kein Fehlnamen);
    - **Kollisions-Regel**: EN-Name, der zugleich ein offizielles
      DE-Name ist (EN „Spotlight“ = DE-Name von „Follow Me“) →
      Vorkommen im DE-Text ist korrekt.
@@ -112,10 +113,10 @@ Ausnahmelisten (kuratiert, im Code dokumentiert):
 
 | Liste | Zweck | Beispiel |
 |---|---|---|
-| `LEHNWORTER` | gewollt englische Begriffe in DE (Item, Team, …); **bewusst eng** — gewöhnliche EN-Wörter (door, city, …) stehen nicht drin. Achtung: `casefold()` streicht keine Akzente, daher `pokedex` **und** `pokédex` explizit | `item, team, route, pokédex, pokécenter, pokénav` |
-| `GERMAN_STOP` | Wörter, die identisch deutsch sind; `winter` (Saison-Label), `bring` (deutscher Imperativ „Bring mir …“) | `tag, man, mal, winter, bring` |
+| `LEHNWORTER` | gewollt englische Begriffe in DE (Item, Team, …); **bewusst eng** — gewöhnliche EN-Wörter (door, mountain, …) stehen nicht drin, **außer** `city` (#39-Korrekturrunde: offizielle deutsche Stadtnamen behalten bewusst „City“, z. B. „Antisis City“ — kein Rest). Achtung: `casefold()` streicht keine Akzente, daher `pokedex` **und** `pokédex` explizit | `item, team, route, city, pokédex, pokécenter, pokénav` |
+| `GERMAN_STOP` | Wörter, die identisch deutsch sind; `winter` (Saison-Label), `bring` (deutscher Imperativ „Bring mir …“), `all` (umgangssprachliches deutsches „all“ = „alle“), `look` (deutscher Lehnwort-Gebrauch „neuen Look“) — die beiden letzteren #39-Korrekturrunde | `tag, man, mal, winter, bring, all, look` |
 | `MARKEN` | Marken-/Label-Zeilen, bewusst unübersetzt | `smogon, unbound` |
-| `EN_DE_VORSCHLAG` | kuratierte EN→DE-Entsprechungen für die Regeln 2+3 und den Läufer; `autumn→Herbst`, `all→alle`, `look→schauen`, … | `city→Stadt` |
+| `EN_DE_VORSCHLAG` | kuratierte EN→DE-Entsprechungen für die Regeln 2+3 und den Läufer; `autumn→Herbst`, … (die früheren Beispiele `city→Stadt`, `all→alle`, `look→schauen` werden seit #39 von LEHNWORTER/GERMAN_STOP vorab erwischt — in der Map redundant, aber harmlos) | `autumn→Herbst` |
 
 ### Analyse 3: Ortsnamen-Einheitlichkeit
 
@@ -135,9 +136,17 @@ Gegen die 108 Ortsnamen aus `NAMENSVERZEICHNIS.md`:
   Lariat“ = DE `Dark Lariat` ist offizieller DE-Name → kein Befund)
 - **Glossar**: `pokemon-unbound-de/docs/NAMENSVERZEICHNIS.md`
   (108 Orte, 258 Glossar-DE-Namen)
-- **Ergebnis**: Abgleich **9** (2 EN-Namen `Leer`, `Upgrade`; 7
-  Tippfehler), Reste **16**, Ortsnamen **4** (`Tarmigan` →
-  `Tarmigau` ×3, `Antisia-Kanal` → `Antisis-Kanal`)
+- **Ergebnis** (nach #39-Korrekturrunde): Abgleich **8**
+  (1 EN-Name `Upgrade`; 7 Tippfehler), Reste **4**
+  (`Speed`, `Power`, `Win-win`, `Autumn` — als **Hinweise** ohne
+  Auto-Fix), Ortsnamen **4** (`Tarmigan` → `Tarmigau` ×3,
+  `Antisia-Kanal` → `Antisis-Kanal`)
+- #39-Kalibrierung: `Leer` → `EN_COGNATE` (Abgleich 9 → 8),
+  `city` → `LEHNWORTER`, `all` + `look` → `GERMAN_STOP`
+  (Reste 16 → 4). **Nebenwirkung**: die Zeile mit dem bekannten
+  Daten-Schaden „ür“ wird dadurch nicht mehr als Rest gemeldet
+  (das `all` in derselben Zeile ist jetzt Stop-Wort); der Schaden
+  bleibt in den Korpus-Daten sichtbar.
 - Die Outputs enthalten Spieltext → **private** Repo
   (`werkstatt-konsistenz-daten/ergebnisse/`); hier nur Code.
 
@@ -177,7 +186,6 @@ Vollendet die Vorlagen aus `werkstatt-konsistenz-daten`
 python3 vorlagen_ergaenzen.py \
   --basis-item item_kurzformen.basis.csv \
   --basis-dex  dex_offen.basis.csv \
-  --kanon      kanon_namen.csv \
   --out-item   item_kurzformen.csv \
   --out-dex    dex_offen.csv
 ```
@@ -187,20 +195,40 @@ python3 vorlagen_ergaenzen.py \
   deutschen Vollformen gefüllt (Kuratiert-Map `KATEGORIE_VOLL`,
   aus den Abkürzungs-Präfixen rekonstruiert: `Klingenkr.` = 9
   Zeichen von `Klingenkrieger`, …; `Hummelflieger` ist ein
-  dokumentierter Vorschlag). Neue Spalte `de_kurz_vorschlag`:
-  passt `de_jetzt` in `max_bytes` (UTF-8-Byte, Umlaute = 2),
-  bleibt es unverändert; sonst längster Präfix der Vollform +
-  Punkt. Kontrolle: alle Vorschläge ≤ `max_bytes` (assertiert).
-  Einziger Vorschlag im Stand 2026-10-28: `Glühwürmch.` (13 > 11)
-  → `Glühwürm.` (11).
+  dokumentierter Vorschlag). Spalte `de_kurz_vorschlag`:
+  passt `de_jetzt` in `max_bytes`, bleibt es unverändert;
+  sonst längster Präfix der Vollform + Punkt. Kontrolle: alle
+  Vorschläge ≤ `max_bytes` (assertiert).
+  - **Maßstab (nach #39-Korrekturrunde): GBA-PCS-Bytes — 1 Byte
+    pro Zeichen** (256er-Zeichensatz; Umlaute ä ö ü ß und
+    Ä Ö Ü = 1 Byte wie lateinische Zeichen, **nicht** UTF-8, wo
+    sie 2 Byte kosten). Im Stand `4c40b4f` passen damit **alle
+    21 Zeilen**; `Glühwürmch.` = 11 PCS-Bytes ≤ `max_bytes` 11
+    und bleibt unverändert (im alten UTF-8-Maßstab wären es
+    13 Byte gewesen → zu kurzes „Glühwürm.“).
+  - Neue Spalte **`pixel_breite`** (informativ, #39: Pixelbreite
+    getrennt von der Byte-Breite testen): Breite in Pixeln im
+    FireRed-Normalfont (summierte Glyph-Vorschübe). Kein
+    Pass/Fail — Bildschirm-Limits je Screen/Buffer
+    unterschiedlich (Referenz: 0xFD-Textpuffer = 54 px).
+  - **Metriken-Quelle** (MIT): Glyph-Breiten-Tabelle
+    (`sFontNormalLatinGlyphWidths` aus pret/pokefirered
+    `src/text.c`) + Zeichentabelle portiert aus
+    [Simopich/unbound-translator](https://github.com/Simopich/unbound-translator)
+    (`lib/gen3_font.py`, `lib/pcs_text.py`), Stand `main` @
+    2026-10-28; Port gegen die Quelldateien byte-identisch
+    verifiziert (Tabellen + Pixelbreiten-Crosscheck).
 - **`dex_offen.csv`** (807 Zeilen, `nr` 1..807):
-  - `edition` aus `nr` (nationale Dex-Nummer): 1–151 Gen 1,
-    152–251 Gen 2, 252–386 Gen 3, 387–493 Gen 4, 494–649 Gen 5,
-    650–721 Gen 6, 722–809 Gen 7, sonst leer;
-  - `quelle` = Kanon-Quelle des Pokémon, wenn der offizielle Name
-    (DE/EN) großgeschrieben mit Wortgrenzen in
-    `de_jetzt`/`en_text` steht (längster Treffer gewinnt), sonst
-    leer (41 von 807);
+  - `edition` **bewusst leer** (#39-Korrekturrunde): „Gen 1“ aus
+    der Dex-Nummer ist eine Generationsspanne, keine Edition —
+    erst nach exaktem Satz-Abgleich gegen den Pokédex-Text
+    befüllen. Generationsspannen-Annahme (nationale Dex-Nummern:
+    1–151 Gen 1, 152–251 Gen 2, 252–386 Gen 3, 387–493 Gen 4,
+    494–649 Gen 5, 650–721 Gen 6, 722–809 Gen 7) nicht
+    verifiziert, auf Anfrage verfügbar;
+  - `quelle` **bewusst leer** (#39): ein Artenname im
+    Kategorie-Text belegt keinen Pokédex-Wortlaut — auch erst
+    nach exaktem Satz-Abgleich;
   - sortiert nach `haeufigkeit` absteigend (Tie-Break `nr`) — die
     100 häufigsten stehen oben.
 

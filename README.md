@@ -15,6 +15,7 @@ per Pfad übergeben.
 | `unuebersetzte_texts.py` | Report aller nicht-übersetzten Korpus-Zeilen (EN == DE nach Normalisierung) — „Was fehlt noch?"-Liste für Pre-Stable |
 | `vorlagen_ergaenzen.py` | Vollendet die Vorlagen aus `werkstatt-konsistenz-daten` (6er-Aufgabe 5+6: Item-Kurzformen, Pokédex) |
 | `vorlagen_erstellen.py` | Alternative Vorlagen-Erzeugung komplett aus Kanon + Korpus (ohne Basis-Vorlagen) |
+| `limits_inventar.py` | Reproduzierbares Abkürzungs-/Limits-Inventar mit Quellenbezug: pro Zeile URL/Hash/Zeilennummer/Bereich/Kurz-/Vollform/Limit/Zeichen; Duplikat-Erhalt, exakter/eindeutiger Vorlagen-Abgleich (sonst `offen`), explizite Unbekanntes (Screen/ROM/Byte), Versionsbezug |
 
 Nur Standardbibliothek, Python ≥ 3.8. Laufzeit: < 5 s (Analyse),
 < 30 s (Vorlagen erstellen).
@@ -243,6 +244,64 @@ Kanon-Pokémon nach Korpus-Vorkommen.
 python3 vorlagen_erstellen.py \
   --kanon kanon_namen.csv --korpus texte_v0.1.7.2.csv --out-dir vorlagen/
 ```
+
+---
+
+## 5. `limits_inventar.py`
+
+Reproduzierbares Abkürzungs-/Limits-Inventar für Abkürzungs-Dokumente
+(öffentliches Release-Asset, z. B. `ABKUERZUNGEN.md` zu v0.1.7.2;
+Ziel: `werkstatt-konsistenz-daten/ergebnisse/limits-inventar/`, privat):
+
+```
+python3 limits_inventar.py \
+  --quelle ABKUERZUNGEN.md \
+  --quelle-url <url> \
+  --asset-version v0.1.7.2 \
+  --expected-sha256 <hash> \
+  --vorlagen item_kurzformen.csv \
+  --abruftag 2026-10-28 \
+  --out-dir ergebnisse/limits-inventar/
+```
+
+- **Pro Tabellenzeile**: Quelle (URL), Datei-SHA-256, Zeilennummer,
+  Bereich, Kurzform, volle Form, dokumentiertes Zeichenlimit
+  (`Limit N Zeichen`), Zeichenanzahl (Unicode-Codepunkte der
+  Kurzform — reine Zeichenzählung)
+- **Duplikate** werden erhalten und erklärt: Identität
+  (Bereich, Kurzform, volle Form, Limit); Erstvorkommen = Original,
+  spätere Vorkommen mit Zeilenbezug (`duplikat_von_zeile`,
+  `duplikat_vorkommen`)
+- **Vorlagen-Abgleich nur exakt/eindeutig** (sonst `offen` mit
+  Grund): Kurzform-Identität + Bereich/Typ-Kompatibilität
+  (Items↔`item`, Pokédex-Kategorien↔`dex_kategorie`, sonstige
+  Bereiche → `ohne_Vorlagenbereich`); volle Form: Identität mit
+  `de_voll`, im dex-Bereich zusätzlich der systematische Suffix
+  `-Pokémon`. Genau ein distinktes Vollform-Paar →
+  `exakt_eindeutig` (mit allen Vorkommen-IDs); mehrere distinkte
+  Vollformen → `offen_mehrfach`; kein Treffer → `offen_kein_Treffer`
+- **Keine abgeleiteten Belege**: Screen-Zuordnung, ROM-Adressen und
+  Byte-Limits bleiben explizit `unbekannt` — sie werden **nicht** aus
+  Zeichenlimits abgeleitet (keine PCS-/Pixel-/ROM-Interpretation);
+  Pixelgrenzen sind nur pro Screen und passender Version belegbar
+- **Inhaltsversionsbezug**: Abweichung zwischen der Titel-Version des
+  Dokuments und `--asset-version` wird als offen dokumentiert —
+  Limitwerte werden nicht pauschal über Versionen übernommen
+- **Exit-Codes**: 0 = ohne Befunde; 1 = Input-Fehler (fehlende
+  Datei, SHA-256-Mismatch, keine Datenzeilen, unlesbare Vorlagen);
+  2 = Überschreitungen oder Strukturfehler > 0. **Kein Pflichtgate**
+  — das Tool berichtet nur
+- **Ausgaben**: `limits_inventory.csv` (Semikolon, pro Zeile, Datei-
+  Reihenfolge) + `limits_inventar_report.md` (Methode, Summen,
+  Duplikatgruppen, Vorlagen-Abgleich, explizite Unbekanntes,
+  Dokument-Hinweise)
+- Deterministisch: keine System-Zeitstempel (`--abruftag` als
+  Argument); zweiter Lauf byte-identisch
+- Tests: `test_limits_inventar.py` (synthetische Fixtures,
+  public-safe; Negativfälle: Unicode-vs-Byte-Zählung, Überschreitung,
+  Duplikat-Erhalt, Vorlagen-Mehrfach/Typ-Inkompatibilität,
+  SHA-Mismatch, Strukturfehler, leere Datei, Versions-Abweichung,
+  Determinismus)
 
 ---
 

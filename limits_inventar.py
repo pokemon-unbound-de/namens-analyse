@@ -21,8 +21,9 @@ Wichtige Abgrenzungen (Projektentscheidungen 2026-10-28):
   einer anderen Version übernommen werden.
 - Das Tool ist kein Gate: es berichtet nur. Exit-Codes:
   0 = ohne Überschreitungen/Strukturfehler;
-  1 = Input-Fehler (fehlende Datei, Hash-Mismatch, keine Zeilen,
-      unlesbare Vorlagen);
+  1 = Input-Fehler (fehlende Datei, ungültiges UTF-8 der Quelle,
+      Hash-Mismatch, keine Zeilen, unlesbare Vorlagen oder
+      fehlerhafter/leerer Vorlagen-Header ohne Pflichtspalten);
   2 = Befunde (Überschreitungen oder Strukturfehler > 0).
 
 Eigenschaften: deterministisch (zweiter Lauf byte-identisch, keine
@@ -135,13 +136,34 @@ def parse_dokument(text):
     return titel, titel_version, zeilen, strukturfehler, hinweise
 
 
+# Pflichtspalten der Vorlagen-CSV — die Spalten, die der Abgleich
+# tatsächlich nutzt. Fehlende Pflichtspalten im Header bedeuten,
+# dass die Datei ungültig ist (Exit 1); sie dürfen nicht stumm als
+# „keine Vorlagen“ durchgehen.
+VORLAGEN_PFLICHT_SPAALTEN = ("id", "typ", "de_kurz_vorschlag", "de_voll")
+
+
 def laden_vorlagen(pfad):
     """Lädt die Vorlagen-CSV (id;typ;en;de_jetzt;de_voll;max_bytes;
     de_kurz_vorschlag;pixel_breite). Nur die für den Abgleich
-    relevanten Felder werden übernommen."""
+    relevanten Felder werden übernommen.
+
+    Wirft ValueError, wenn der Header leer ist oder Pflichtspalten
+    fehlen (ein falscher Header darf nicht stumm in eine leere
+    Vorlagen-Liste münden)."""
     vorlagen = []
     with open(pfad, encoding="utf-8", newline="") as fh:
-        for r in csv.DictReader(fh, delimiter=";"):
+        reader = csv.DictReader(fh, delimiter=";")
+        felder = reader.fieldnames
+        if not felder:
+            raise ValueError("leere Vorlagen-CSV (kein Header)")
+        fehlt = [k for k in VORLAGEN_PFLICHT_SPAALTEN if k not in felder]
+        if fehlt:
+            gefunden = ", ".join(f for f in felder if f) or "(keine)"
+            raise ValueError(
+                "Vorlagen-CSV: fehlende Pflichtspalte(n) %s "
+                "(gefunden: %s)" % (", ".join(fehlt), gefunden))
+        for r in reader:
             kurz = (r.get("de_kurz_vorschlag") or "").strip()
             if not kurz:
                 continue
@@ -440,14 +462,21 @@ def main(argv=None):
         print("Fehler: SHA-256-Mismatch: erwartet %s, gefunden %s"
               % (args.expected_sha256, sha), file=sys.stderr)
         return 1
-    text = roh.decode("utf-8")
+    try:
+        text = roh.decode("utf-8")
+    except UnicodeDecodeError as e:
+        print("Fehler: Quelle ist kein gültiges UTF-8 (Byte %d, %s) — "
+              "Eingabe abgebrochen" % (e.start + 1, e.reason),
+              file=sys.stderr)
+        return 1
 
     vorlagen = None
     if args.vorlagen:
         try:
             vorlagen = laden_vorlagen(args.vorlagen)
-        except (OSError, csv.Error, UnicodeDecodeError) as e:
-            print("Fehler: Vorlagen nicht lesbar: %s" % e, file=sys.stderr)
+        except (OSError, csv.Error, UnicodeDecodeError, ValueError) as e:
+            print("Fehler: Vorlagen ungültig oder nicht lesbar: %s" % e,
+                  file=sys.stderr)
             return 1
 
     titel, titel_version, zeilen, strukturfehler, hinweise = \

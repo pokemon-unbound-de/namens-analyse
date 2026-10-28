@@ -9,6 +9,11 @@ QA 2026-10-28 (CX-022):
 - Vorlagen-Abgleich nur exakt/eindeutig (Kurzform-Identitaet +
   Typ-Kompatibilitaet; dex: systematischer Suffix "-Pokémon"),
   sonst `offen` mit Grund
+- Vorlagen-Header-Validierung: fehlende Pflichtspalten, falscher
+  oder leerer Header => Exit 1 (kein stilles „keine Vorlagen“);
+  korrekter Header ohne Datenzeilen => erlaubte leere Liste
+- Ungültiges UTF-8 der Markdown-Quelle => sauberes Exit 1 ohne
+  Traceback
 - KEINE Byte-/Pixel-/Screen-/ROM-Adressen abgeleitet: die Spalten
   bleiben explizit `unbekannt`
 - Titel-/Asset-Version-Abweichung = ungeklärter Inhaltsversionsbezug
@@ -262,6 +267,58 @@ class TestLimitsInventar(unittest.TestCase):
         row = self.r.les_csv(out)[0]
         self.assertEqual(row["vorlagen_abgleich"], "ohne_Vorlagen")
         self.assertEqual(row["vorlagen_grund"], "vorlagen_datei_nicht_vorgegeben")
+
+    def test_vorlagen_fehlerhafter_header_exit1(self):
+        # Falscher Header + Datenzeilen dürfen nicht stumm als
+        # „keine Vorlagen“ durchgehen, sondern abbrechen.
+        doc = dokument(zeile("Items", "Irgendw.", "Irgendwas", 12))
+        vor = "wrong;headers\na;b\n"
+        r, _ = self.r.run(doc, vorlagen_text=vor)
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("Pflichtspalte", r.stderr)
+        self.assertIn("de_kurz_vorschlag", r.stderr)
+        self.assertIn("wrong", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_vorlagen_leere_datei_exit1(self):
+        doc = dokument(zeile("Items", "Irgendw.", "Irgendwas", 12))
+        r, _ = self.r.run(doc, vorlagen_text="")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("kein Header", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_vorlagen_teilweiser_header_exit1(self):
+        # Header vorhanden, aber zwei Pflichtspalten fehlen.
+        doc = dokument(zeile("Items", "Irgendw.", "Irgendwas", 12))
+        vor = "id;typ\neins;zwei\n"
+        r, _ = self.r.run(doc, vorlagen_text=vor)
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("de_kurz_vorschlag", r.stderr)
+        self.assertIn("de_voll", r.stderr)
+
+    def test_vorlagen_korrekter_header_ohne_datazeilen_ok(self):
+        # Gültiger Header, aber keine Datenzeilen = erlaubte
+        # (leere) Vorlagen-Liste, kein Fehler.
+        doc = dokument(zeile("Items", "Irgendw.", "Irgendwas", 12))
+        vor = VORLAGEN_HEADER + "\n"
+        r, out = self.r.run(doc, vorlagen_text=vor)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        row = self.r.les_csv(out)[0]
+        self.assertEqual(row["vorlagen_abgleich"], "offen_kein_Treffer")
+        self.assertEqual(row["vorlagen_grund"], "kein_Treffer")
+
+    def test_quelle_ungueltiges_utf8_exit1(self):
+        qu = os.path.join(self.tmp, "quelle_binaer.md")
+        with open(qu, "wb") as fh:
+            fh.write("# Titel\n\n| x | y | z | w | Limit 4 Zeichen |\n"
+                     .encode("utf-8"))
+            fh.write(b"\xff\xfe| kaputt |")
+        r = subprocess.run([sys.executable, SCRIPT, "--quelle", qu,
+                            "--out-dir", os.path.join(self.tmp, "out")],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("UTF-8", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
 
     def test_hash_mismatch_exit1(self):
         doc = dokument(zeile("Items", "Hash.", "Hashvoll", 12))

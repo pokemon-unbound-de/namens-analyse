@@ -280,6 +280,10 @@ python3 limits_inventar.py \
   `-Pokémon`. Genau ein distinktes Vollform-Paar →
   `exakt_eindeutig` (mit allen Vorkommen-IDs); mehrere distinkte
   Vollformen → `offen_mehrfach`; kein Treffer → `offen_kein_Treffer`
+- **Vorlagen-Validierung**: der Header wird auf die Pflichtspalten
+  `id`, `typ`, `de_kurz_vorschlag`, `de_voll` geprüft; leere
+  Dateien oder fehlende/fehlerhafte Header → verständlicher
+  Input-Fehler mit Exit 1 (kein stilles „keine Vorlagen“)
 - **Keine abgeleiteten Belege**: Screen-Zuordnung, ROM-Adressen und
   Byte-Limits bleiben explizit `unbekannt` — sie werden **nicht** aus
   Zeichenlimits abgeleitet (keine PCS-/Pixel-/ROM-Interpretation);
@@ -288,9 +292,10 @@ python3 limits_inventar.py \
   Dokuments und `--asset-version` wird als offen dokumentiert —
   Limitwerte werden nicht pauschal über Versionen übernommen
 - **Exit-Codes**: 0 = ohne Befunde; 1 = Input-Fehler (fehlende
-  Datei, SHA-256-Mismatch, keine Datenzeilen, unlesbare Vorlagen);
-  2 = Überschreitungen oder Strukturfehler > 0. **Kein Pflichtgate**
-  — das Tool berichtet nur
+  Datei, ungültiges UTF-8 der Quelle, SHA-256-Mismatch, keine
+  Datenzeilen, unlesbare Vorlagen oder fehlerhafter/leerer
+  Vorlagen-Header); 2 = Überschreitungen oder Strukturfehler > 0.
+  **Kein Pflichtgate** — das Tool berichtet nur
 - **Ausgaben**: `limits_inventory.csv` (Semikolon, pro Zeile, Datei-
   Reihenfolge) + `limits_inventar_report.md` (Methode, Summen,
   Duplikatgruppen, Vorlagen-Abgleich, explizite Unbekanntes,
@@ -301,7 +306,8 @@ python3 limits_inventar.py \
   public-safe; Negativfälle: Unicode-vs-Byte-Zählung, Überschreitung,
   Duplikat-Erhalt, Vorlagen-Mehrfach/Typ-Inkompatibilität,
   SHA-Mismatch, Strukturfehler, leere Datei, Versions-Abweichung,
-  Determinismus)
+  fehlerhafter/leerer/teilweiser Vorlagen-Header, ungültiges
+  UTF-8 der Quelle, Determinismus)
 
 ---
 

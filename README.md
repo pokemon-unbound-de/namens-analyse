@@ -12,6 +12,7 @@ per Pfad übergeben.
 | Script | Zweck |
 |---|---|
 | `namens_analyse.py` | Drei Analysen: Namens-Abgleich, englische Reste, Ortsnamen-Einheitlichkeit |
+| `unuebersetzte_texts.py` | Report aller nicht-übersetzten Korpus-Zeilen (EN == DE nach Normalisierung) — „Was fehlt noch?"-Liste für Pre-Stable |
 | `vorlagen_ergaenzen.py` | Vollendet die Vorlagen aus `werkstatt-konsistenz-daten` (6er-Aufgabe 5+6: Item-Kurzformen, Pokédex) |
 | `vorlagen_erstellen.py` | Alternative Vorlagen-Erzeugung komplett aus Kanon + Korpus (ohne Basis-Vorlagen) |
 
@@ -147,7 +148,27 @@ unter `research/konsistenz-kalibrierung.md`).
 
 ---
 
-## 2. `vorlagen_ergaenzen.py` (6er-Aufgabe 5+6)
+## 2. `unuebersetzte_texts.py`
+
+```
+python3 unuebersetzte_texts.py --korpus texte_v0.1.7.2.csv \
+    --out unuebersetzte.csv
+```
+
+Meldet alle Zeilen, deren DE-Text nach `norm()` identisch mit dem
+EN-Text ist (= nicht übersetzt). Output:
+`id;kategorie;ort;en;de;raw_gleich;typ`.
+
+- `raw_gleich` = `nein` → nur Steuercodes/Farbcodes weichen ab
+  (Text unangetastet),
+- `typ` nach Wortzahl: `satz` (≥ 4 Wörter = echte Lücke),
+  `kurz_text` (2–3), `ein_wort` (1; meist gewollte Namen/
+  Onomatopöien).
+
+Stand 2026-10-28: 444 von 17.188 Zeilen (48 `satz`, 72 `kurz_text`,
+324 `ein_wort`). Output enthält Spieltext → privat.
+
+## 3. `vorlagen_ergaenzen.py` (6er-Aufgabe 5+6)
 
 Vollendet die Vorlagen aus `werkstatt-konsistenz-daten`
 (Stand `4c40b4f`) — deterministisch:
@@ -183,7 +204,7 @@ python3 vorlagen_ergaenzen.py \
   - sortiert nach `haeufigkeit` absteigend (Tie-Break `nr`) — die
     100 häufigsten stehen oben.
 
-## 3. `vorlagen_erstellen.py`
+## 4. `vorlagen_erstellen.py`
 
 Erstellt beide Vorlagen komplett neu aus Kanon + Korpus (ohne
 Basis-Vorlagen), falls keine bereitstehen: alle 1.005 Kanon-Items

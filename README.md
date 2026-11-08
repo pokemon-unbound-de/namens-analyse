@@ -1,5 +1,7 @@
 # namens-analyse
 
+> **English:** Deterministic, offline text analyses for the Pokémon Unbound DE translation: name matching against the canon list, English leftovers, place-name consistency. The code is public-safe; evaluations containing game text stay private.
+
 Deterministische Text-Analysen für die
 [Pokémon-Unbound-DE-Übersetzung](https://github.com/pokemon-unbound-de).
 Alles läuft **offline, ohne LLM und deterministisch** (zweiter Lauf
